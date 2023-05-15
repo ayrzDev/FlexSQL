@@ -1,3 +1,5 @@
+<?php
+
 class FlexSQL {
     private $pdo;
     private $stmt;
