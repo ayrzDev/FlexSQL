@@ -14,6 +14,7 @@ class FlexSQL
         $dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
         $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            // PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ, // Object olarak çekmek için aşağıdaki kodu kapatıp bu kodu açmanız gerekli.
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
         ];
@@ -38,11 +39,14 @@ class FlexSQL
         return $this;
     }
 
-    public function select($table, $columns = "*", $where = "", $params = [])
+    public function select($table, $columns = "*", $where = "", $params = [], $limit = "")
     {
         $query = "SELECT $columns FROM $table";
         if (!empty($where)) {
             $query .= " WHERE $where";
+        }
+        if (!empty($limit)) {
+            $query .= " LIMIT $limit";
         }
         $this->stmt = $this->pdo->prepare($query);
         $this->stmt->execute($params);
@@ -203,7 +207,50 @@ class FlexSQL
 
     public function limit($limit)
     {
-        $this->limitClause = "LIMIT $limit";
+        $this->limitClause = "LIMIT " . intval($limit);
+        return $this;
+    }
+
+
+    public function mdelete($table, $where, $whereIn = null)
+    {
+        $query = "DELETE FROM $table WHERE $where";
+
+        if ($whereIn !== null && is_array($whereIn) && count($whereIn) > 1) { // $whereIn değişkeni kontrol ediliyor.
+            $whereInClause = implode(",", array_fill(0, count($whereIn[1]), "?"));
+            $query .= " AND $whereIn[0] IN ($whereInClause)";
+        }
+
+        $this->stmt = $this->pdo->prepare($query);
+
+        if ($whereIn !== null && is_array($whereIn) && count($whereIn) > 1) { // $whereIn değişkeni kontrol ediliyor.
+            $params = $whereIn[1];
+            if (isset($whereIn[2])) {
+                $params = array_merge($params, $whereIn[2]);
+            }
+            $this->stmt->execute($params);
+        } else {
+            $this->stmt->execute();
+        }
+
+        return $this;
+    }
+
+    public function minsert($table, $data, $columns = null)
+    {
+        if ($columns === null) {
+            $columns = array_keys(reset($data));
+        } elseif (is_string($columns)) {
+            $columns = explode(',', $columns);
+        }
+
+        $values = implode(", ", array_fill(0, count($columns), "?"));
+        $columns = implode(", ", $columns);
+        $query = "INSERT INTO $table ($columns) VALUES ($values)";
+        $this->stmt = $this->pdo->prepare($query);
+        foreach ($data as $row) {
+            $this->stmt->execute(array_values($row));
+        }
         return $this;
     }
 }
