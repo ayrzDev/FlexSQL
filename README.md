@@ -1,3 +1,4 @@
+![Logo](https://github.com/ayrzDev/FlexSQL/blob/main/logo.png)
 # FlexSQL - Class
 Bu PHP sınıfı, güvenli bir şekilde SQL sorgularını yürütmek için bir arayüz sağlar. Ayrıca, genel kullanıma yönelik yaygın SQL işlemlerini kolaylaştırmak için bazı yardımcı yöntemler de içerir.
 ## Setup
