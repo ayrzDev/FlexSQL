@@ -27,6 +27,53 @@ class FlexSQL
         return $this;
     }
 
+    public function delete($table, $where = "", $params = [])
+    {
+        $query = "DELETE FROM $table";
+        if (!empty($where)) {
+            $query .= " WHERE $where";
+        }
+        $this->stmt = $this->pdo->prepare($query);
+        $this->stmt->execute($params);
+        return $this;
+    }
+
+    public function select($table, $columns = "*", $where = "", $params = [])
+    {
+        $query = "SELECT $columns FROM $table";
+        if (!empty($where)) {
+            $query .= " WHERE $where";
+        }
+        $this->stmt = $this->pdo->prepare($query);
+        $this->stmt->execute($params);
+        return $this;
+    }
+
+    public function insert($table, $data)
+    {
+        $columns = implode(", ", array_keys($data));
+        $values = implode(", ", array_fill(0, count($data), "?"));
+        $query = "INSERT INTO $table ($columns) VALUES ($values)";
+        $this->stmt = $this->pdo->prepare($query);
+        $this->stmt->execute(array_values($data));
+        return $this;
+    }
+
+    public function update($table, $data, $where = "", $params = [])
+    {
+        $setClause = implode(", ", array_map(function ($key) {
+            return "$key=?";
+        }, array_keys($data)));
+        $query = "UPDATE $table SET $setClause";
+        if (!empty($where)) {
+            $query .= " WHERE $where";
+        }
+        $params = array_merge(array_values($data), $params);
+        $this->stmt = $this->pdo->prepare($query);
+        $this->stmt->execute($params);
+        return $this;
+    }
+
     public function fetch()
     {
         return $this->stmt->fetch();

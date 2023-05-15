@@ -53,4 +53,35 @@ $rows = $sql->update('users', $data, $where, $params);
 ```php
 $sql->delete('mytable');
 $sql->delete('mytable', 'id = ?', [1]);
+
 ```
+### Basit bir SELECT sorgusu
+```php
+$db = new FlexSQL('localhost', 'mydatabase', 'myusername', 'mypassword');
+$results = $db->query('SELECT * FROM users')->fetchAll();
+```
+
+### JOIN işlemi ile birden fazla tablo kullanarak bir SELECT sorgusu
+```php
+$results = $db->query('SELECT users.*, orders.* FROM users INNER JOIN orders ON users.id = orders.user_id')->fetchAll();
+```
+
+### WHERE ve ORDER BY kullanarak bir SELECT sorgusu
+```php
+$results = $db->query('SELECT * FROM users WHERE age > ? ORDER BY name ASC', [18])->fetchAll();
+```
+
+### GROUP BY, HAVING ve LIMIT kullanarak bir SELECT sorgusu
+```php
+$results = $db->query('SELECT department_id, AVG(salary) as avg_salary FROM employees GROUP BY department_id HAVING avg_salary > ? ORDER BY avg_salary DESC LIMIT 10', [50000])->fetchAll();
+```
+
+### Veri Ekleme Örneği
+```php
+$db = new FlexSQL('localhost', 'mydatabase', 'myuser', 'mypassword');
+$query = "INSERT INTO students (name, email, phone) VALUES (?, ?, ?)";
+$params = ['John Doe', 'johndoe@example.com', '555-1234'];
+$db->query($query, $params);
+```
+
+
