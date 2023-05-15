@@ -1,10 +1,16 @@
 <?php
 
-class FlexSQL {
+class FlexSQL
+{
     private $pdo;
     private $stmt;
+    private $joinClauses = [];
+    private $groupClauses = [];
+    private $orderClauses = [];
+    private $limitClause = '';
 
-    public function __construct($host, $db, $user, $pass) {
+    public function __construct($host, $db, $user, $pass)
+    {
         $dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
         $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -14,80 +20,143 @@ class FlexSQL {
         $this->pdo = new PDO($dsn, $user, $pass, $options);
     }
 
-    public function query($query, $params = []) {
+    public function query($query, $params = [])
+    {
         $this->stmt = $this->pdo->prepare($query);
         $this->stmt->execute($params);
         return $this;
     }
 
-    public function fetch() {
+    public function fetch()
+    {
         return $this->stmt->fetch();
     }
 
-    public function fetchAll() {
+    public function fetchAll()
+    {
         return $this->stmt->fetchAll();
     }
 
-    public function rowCount() {
+    public function rowCount()
+    {
         return $this->stmt->rowCount();
     }
 
-    public function lastInsertId() {
+    public function lastInsertId()
+    {
         return $this->pdo->lastInsertId();
     }
 
-    public function beginTransaction() {
+    public function beginTransaction()
+    {
         return $this->pdo->beginTransaction();
     }
 
-    public function commit() {
+    public function commit()
+    {
         return $this->pdo->commit();
     }
 
-    public function rollBack() {
+    public function rollBack()
+    {
         return $this->pdo->rollBack();
     }
 
-    public function quote($string) {
+    public function quote($string)
+    {
         return $this->pdo->quote($string);
     }
 
-    public function select($table, $columns = '*', $where = '', $params = []) {
-        $query = "SELECT $columns FROM $table";
-        if (!empty($where)) {
-            $query .= " WHERE $where";
-        }
-        return $this->query($query, $params);
+    private function resetQueryState()
+    {
+        $this->joinClauses = [];
+        $this->groupClauses = [];
+        $this->orderClauses = [];
+        $this->limitClause = '';
     }
 
-    public function insert($table, $data) {
-        $columns = implode(',', array_keys($data));
-        $placeholders = implode(',', array_fill(0, count($data), '?'));
-        $query = "INSERT INTO $table ($columns) VALUES ($placeholders)";
-        $params = array_values($data);
-        $this->query($query, $params);
-        return $this->lastInsertId();
+    private function buildJoinClause()
+    {
+        $joinClause = '';
+        foreach ($this->joinClauses as $join) {
+            $joinClause .= " {$join['type']} JOIN {$join['table']} ON {$join['on']}";
+        }
+        return $joinClause;
     }
 
-    public function update($table, $data, $where = '', $params = []) {
-        $set = '';
-        foreach ($data as $column => $value) {
-            $set .= "$column=?,";
+    public function join($table, $on, $type = 'INNER')
+    {
+        $this->joinClauses[] = [
+            'table' => $table,
+            'on' => $on,
+            'type' => $type,
+        ];
+        return $this;
+    }
+
+    public function leftJoin($table, $on)
+    {
+        return $this->join($table, $on, 'LEFT');
+    }
+
+    public function rightJoin($table, $on)
+    {
+        return $this->join($table, $on, 'RIGHT');
+    }
+
+    public function fullOuterJoin($table, $on)
+    {
+        return $this->join($table, $on, 'FULL OUTER');
+    }
+
+    public function groupBy($columns)
+    {
+        if (!is_array($columns)) {
+            $columns = [$columns];
         }
-        $set = rtrim($set, ',');
-        $query = "UPDATE $table SET $set";
-        if (!empty($where)) {
-            $query .= " WHERE $where";
+        $this->groupClauses['columns'] = implode(',', $columns);
+        return $this;
+    }
+
+    public function having($having)
+    {
+        $this->groupClauses['having'] = $having;
+        return $this;
+    }
+
+    public function orderBy($table, $columns, $order = 'ASC')
+    {
+        if (!is_array($columns)) {
+            $columns = [$columns];
         }
-        $params = array_merge(array_values($data), $params);
+        $order = strtoupper($order) === 'DESC' ? 'DESC' : 'ASC';
+        $orderBy = implode(', ', $columns);
+        $query = "SELECT * FROM $table ORDER BY $orderBy $order";
+        return $this->query($query)->fetchAll();
+    }
+
+    public function createTable($table, $columns)
+    {
+        $query = "CREATE TABLE $table ($columns)";
+        return $this->query($query)->rowCount();
+    }
+
+    public function dropTable($table)
+    {
+        $query = "DROP TABLE $table";
+        return $this->query($query)->rowCount();
+    }
+
+    public function updateTable($table, $column, $new_value, $where)
+    {
+        $query = "UPDATE $table SET $column = ? WHERE $where";
+        $params = [$new_value];
         return $this->query($query, $params)->rowCount();
     }
 
-    public function delete($table, $where = '', $params = []) {
-        $query = "DELETE FROM $table";
-        if (!empty($where)) {
-            $query .= " WHERE $where";
-        }
-        return $this->query($query, $params)->rowCount();
+    public function limit($limit)
+    {
+        $this->limitClause = "LIMIT $limit";
+        return $this;
     }
 }
